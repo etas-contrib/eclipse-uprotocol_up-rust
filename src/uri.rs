@@ -293,6 +293,27 @@ impl Hash for UUri {
 
 impl Eq for UUri {}
 
+impl PartialEq<str> for UUri {
+    fn eq(&self, other: &str) -> bool {
+        match UUri::from_str(other) {
+            Ok(other_uri) => self.eq(&other_uri),
+            Err(_) => false,
+        }
+    }
+}
+
+impl PartialEq<&str> for UUri {
+    fn eq(&self, other: &&str) -> bool {
+        self.eq(*other)
+    }
+}
+
+impl PartialEq<String> for UUri {
+    fn eq(&self, other: &String) -> bool {
+        self.eq(other.as_str())
+    }
+}
+
 impl UUri {
     /// Serializes this UUri to a URI string.
     ///
@@ -989,6 +1010,65 @@ impl UUri {
 mod tests {
     use super::*;
     use test_case::test_case;
+
+    #[test_case(UUri {
+            authority_name: "vin".into(),
+            ue_id: 0x0000_8000,
+            ue_version_major: 0x01,
+            resource_id: 0x0002,
+            ..Default::default()
+        },
+        "//vin/8000/1/2" => true;
+        "succeeds for full URI with authority")]
+    #[test_case(UUri {
+            authority_name: "".into(),
+            ue_id: 0x0000_8000,
+            ue_version_major: 0x01,
+            resource_id: 0x0002,
+            ..Default::default()
+        },
+        "up:/8000/1/2" => true;
+        "succeeds for URI without authority")]
+    #[test_case(UUri {
+            authority_name: "vin".into(),
+            ue_id: 0x0000_8000,
+            ue_version_major: 0x01,
+            resource_id: 0x0002,
+            ..Default::default()
+        },
+        "//other-vin/8000/1/2" => false;
+        "fails for different authority")]
+    #[test_case(UUri {
+            authority_name: "vin".into(),
+            ue_id: 0x0000_8000,
+            ue_version_major: 0x01,
+            resource_id: 0x0002,
+            ..Default::default()
+        },
+        "up://vin/18000/1/2" => false;
+        "fails for different entity ID")]
+    #[test_case(UUri {
+            authority_name: "vin".into(),
+            ue_id: 0x0000_8000,
+            ue_version_major: 0x01,
+            resource_id: 0x0002,
+            ..Default::default()
+        },
+        "//vin/8000/2/2" => false;
+        "fails for different version")]
+    #[test_case(UUri {
+            authority_name: "vin".into(),
+            ue_id: 0x0000_8000,
+            ue_version_major: 0x01,
+            resource_id: 0x0002,
+            ..Default::default()
+        },
+        "up://vin/8000/1/5" => false;
+        "fails for different resource ID")]
+    #[allow(clippy::cmp_owned)]
+    fn test_eq_with_str(uuri: UUri, uri_str: &str) -> bool {
+        uuri == uri_str && uuri == *uri_str && uuri == String::from(uri_str)
+    }
 
     // [utest->dsn~uri-authority-name-length~1]
     // [utest->dsn~uri-host-only~2]
