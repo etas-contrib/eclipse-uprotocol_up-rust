@@ -198,7 +198,9 @@ impl UAttributesValidators {
             UMessageType::UMESSAGE_TYPE_REQUEST => Box::new(RequestValidator),
             UMessageType::UMESSAGE_TYPE_RESPONSE => Box::new(ResponseValidator),
             UMessageType::UMESSAGE_TYPE_NOTIFICATION => Box::new(NotificationValidator),
-            _ => Box::new(PublishValidator),
+            UMessageType::UMESSAGE_TYPE_UNSPECIFIED | UMessageType::UMESSAGE_TYPE_PUBLISH => {
+                Box::new(PublishValidator)
+            }
         }
     }
 }

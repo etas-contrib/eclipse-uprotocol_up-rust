@@ -170,45 +170,45 @@ impl FromStr for UUri {
             .map_or(Ok(String::default()), Self::verify_parsed_authority)?;
 
         let path_segments = parsed_uri.path().segments();
-        if path_segments.len() != 3 {
-            return Err(UUriError::serialization_error(
-                "uProtocol URI must contain entity ID, entity version and resource ID",
-            ));
-        }
-        let entity = path_segments[0].as_str();
-        if entity.is_empty() {
-            return Err(UUriError::serialization_error(
-                "URI must contain non-empty entity ID",
-            ));
-        }
-        let ue_id = u32::from_str_radix(entity, 16)
-            .map_err(|e| UUriError::serialization_error(format!("Cannot parse entity ID: {e}")))?;
-        let version = path_segments[1].as_str();
-        if version.is_empty() {
-            return Err(UUriError::serialization_error(
-                "URI must contain non-empty entity version",
-            ));
-        }
-        let ue_version_major = u8::from_str_radix(version, 16).map_err(|e| {
-            UUriError::serialization_error(format!("Cannot parse entity version: {e}"))
-        })?;
-        let resource = path_segments[2].as_str();
-        if resource.is_empty() {
-            return Err(UUriError::serialization_error(
-                "URI must contain non-empty resource ID",
-            ));
-        }
-        let resource_id = u16::from_str_radix(resource, 16).map_err(|e| {
-            UUriError::serialization_error(format!("Cannot parse resource ID: {e}"))
-        })?;
+        match path_segments {
+            [entity, version, resource] => {
+                if entity.is_empty() {
+                    return Err(UUriError::serialization_error(
+                        "URI must contain non-empty entity ID",
+                    ));
+                }
+                let ue_id = u32::from_str_radix(entity, 16).map_err(|e| {
+                    UUriError::serialization_error(format!("Cannot parse entity ID: {e}"))
+                })?;
+                if version.is_empty() {
+                    return Err(UUriError::serialization_error(
+                        "URI must contain non-empty entity version",
+                    ));
+                }
+                let ue_version_major = u8::from_str_radix(version, 16).map_err(|e| {
+                    UUriError::serialization_error(format!("Cannot parse entity version: {e}"))
+                })?;
+                if resource.is_empty() {
+                    return Err(UUriError::serialization_error(
+                        "URI must contain non-empty resource ID",
+                    ));
+                }
+                let resource_id = u16::from_str_radix(resource, 16).map_err(|e| {
+                    UUriError::serialization_error(format!("Cannot parse resource ID: {e}"))
+                })?;
 
-        Ok(UUri {
-            authority_name,
-            ue_id,
-            ue_version_major: ue_version_major as u32,
-            resource_id: resource_id as u32,
-            ..Default::default()
-        })
+                Ok(UUri {
+                    authority_name,
+                    ue_id,
+                    ue_version_major: ue_version_major as u32,
+                    resource_id: resource_id as u32,
+                    ..Default::default()
+                })
+            }
+            _ => Err(UUriError::serialization_error(
+                "uProtocol URI must contain entity ID, entity version and resource ID",
+            )),
+        }
     }
 }
 
