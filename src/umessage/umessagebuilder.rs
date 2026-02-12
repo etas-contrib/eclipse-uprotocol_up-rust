@@ -339,7 +339,7 @@ impl UMessageBuilder {
     /// Sets the message's priority.
     ///
     /// If not set explicitly, the default priority as defined in the
-    /// [uProtocol specification](https://github.com/eclipse-uprotocol/up-spec/blob/main/basics/qos.adoc)
+    /// [uProtocol specification](https://github.com/eclipse-uprotocol/up-spec/blob/main/basics/upriority.adoc)
     /// is used.
     ///
     /// # Arguments

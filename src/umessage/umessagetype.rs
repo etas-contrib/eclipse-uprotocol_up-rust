@@ -91,8 +91,8 @@ mod tests {
     ) {
         let result = UMessageType::try_from_cloudevent_type(cloudevent_type);
         assert!(result.is_ok() == expected_message_type.is_some());
-        if expected_message_type.is_some() {
-            assert_eq!(result.unwrap(), expected_message_type.unwrap())
+        if let Some(message_type) = expected_message_type {
+            assert_eq!(result.unwrap(), message_type)
         } else {
             assert!(matches!(
                 result.unwrap_err(),
