@@ -174,25 +174,49 @@ impl<T: DeploymentTarget> RequestHandler for GetOperation<T> {
                 serde_json::to_string_pretty(&request_data).expect("failed to serialize Value")
             );
         }
-        let deployment_spec: DeploymentSpec =
-            serde_json::from_value(request_data["deployment"].clone()).map_err(|err| {
+        let deployment_spec: DeploymentSpec = request_data
+            .get("deployment")
+            .ok_or_else(|| {
                 debug!(
                     source = source_uri,
-                    "request does not contain DeploymentSpec: {err}"
+                    "request does not contain DeploymentSpec"
                 );
                 ServiceInvocationError::InvalidArgument(
                     "request does not contain DeploymentSpec".to_string(),
                 )
+            })
+            .and_then(|deployment| {
+                serde_json::from_value(deployment.clone()).map_err(|err| {
+                    debug!(
+                        source = source_uri,
+                        "request contains invalid DeploymentSpec: {err}"
+                    );
+                    ServiceInvocationError::InvalidArgument(
+                        "request contains invalid DeploymentSpec".to_string(),
+                    )
+                })
             })?;
-        let component_specs: Vec<ComponentSpec> =
-            serde_json::from_value(request_data["components"].clone()).map_err(|err| {
+        let component_specs: Vec<ComponentSpec> = request_data
+            .get("components")
+            .ok_or_else(|| {
                 debug!(
                     source = source_uri,
-                    "request does not contain ComponentSpec array: {err}"
+                    "request does not contain ComponentSpec array"
                 );
                 ServiceInvocationError::InvalidArgument(
                     "request does not contain ComponentSpec array".to_string(),
                 )
+            })
+            .and_then(|components| {
+                serde_json::from_value(components.clone()).map_err(|err| {
+                    debug!(
+                        source = source_uri,
+                        "request contains invalid ComponentSpec array: {err}"
+                    );
+                    ServiceInvocationError::InvalidArgument(
+                        "request contains invalid ComponentSpec array".to_string(),
+                    )
+                })
             })?;
 
         let result = self
@@ -249,28 +273,54 @@ impl<T: DeploymentTarget> RequestHandler for ApplyOperation<T> {
             trace!("payload: {}", json);
         }
 
-        let deployment_spec: DeploymentSpec =
-            serde_json::from_value(request_data["deployment"].clone()).map_err(|err| {
+        let deployment_spec: DeploymentSpec = request_data
+            .get("deployment")
+            .ok_or_else(|| {
                 debug!(
                     source = source_uri,
                     method = sink_uri,
-                    "request does not contain DeploymentSpec: {err}"
+                    "request does not contain DeploymentSpec"
                 );
                 ServiceInvocationError::InvalidArgument(
                     "request does not contain DeploymentSpec".to_string(),
                 )
+            })
+            .and_then(|deployment| {
+                serde_json::from_value(deployment.clone()).map_err(|err| {
+                    debug!(
+                        source = source_uri,
+                        method = sink_uri,
+                        "request contains invalid DeploymentSpec: {err}"
+                    );
+                    ServiceInvocationError::InvalidArgument(
+                        "request contains invalid DeploymentSpec".to_string(),
+                    )
+                })
             })?;
 
-        let affected_components: Vec<ComponentSpec> =
-            serde_json::from_value(request_data["components"].clone()).map_err(|err| {
+        let affected_components: Vec<ComponentSpec> = request_data
+            .get("components")
+            .ok_or_else(|| {
                 debug!(
                     source = source_uri,
                     method = sink_uri,
-                    "request does not contain ComponentSpec array: {err}"
+                    "request does not contain ComponentSpec array"
                 );
                 ServiceInvocationError::InvalidArgument(
                     "request does not contain ComponentSpec array".to_string(),
                 )
+            })
+            .and_then(|components| {
+                serde_json::from_value(components.clone()).map_err(|err| {
+                    debug!(
+                        source = source_uri,
+                        method = sink_uri,
+                        "request contains invalid ComponentSpec array: {err}"
+                    );
+                    ServiceInvocationError::InvalidArgument(
+                        "request contains invalid ComponentSpec array".to_string(),
+                    )
+                })
             })?;
 
         let result = match resource_id {

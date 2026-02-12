@@ -318,8 +318,12 @@ impl TryFrom<UMessage> for CloudEvent {
                         })?;
                     event.set_text_data(data);
                 }
-                _ => {
-                    event.set_binary_data(payload.into());
+                UPayloadFormat::UPAYLOAD_FORMAT_UNSPECIFIED
+                | UPayloadFormat::UPAYLOAD_FORMAT_RAW
+                | UPayloadFormat::UPAYLOAD_FORMAT_SHM
+                | UPayloadFormat::UPAYLOAD_FORMAT_SOMEIP
+                | UPayloadFormat::UPAYLOAD_FORMAT_SOMEIP_TLV => {
+                    event.set_binary_data(payload.to_vec());
                 }
             }
         }

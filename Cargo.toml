@@ -127,3 +127,12 @@ harness = false   # allows Cucumber to print output instead of libtest
 # this prevents cargo from complaining about code blocks
 # excluded from tarpaulin coverage checks
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tarpaulin_include)'] }
+
+[lints.clippy]
+# see https://corrode.dev/blog/defensive-programming/#clippy-lints-for-defensive-programming
+indexing_slicing = "deny"
+fallible_impl_from = "deny"
+wildcard_enum_match_arm = "deny"
+unneeded_field_pattern = "deny"
+fn_params_excessive_bools = "deny"
+must_use_candidate = "allow"

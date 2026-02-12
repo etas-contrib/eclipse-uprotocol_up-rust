@@ -374,7 +374,13 @@ pub(crate) fn deserialize_protobuf_bytes<T: MessageFull + Default>(
                     Err(e) => Err(UMessageError::DataSerializationError(e)),
                 })
         }
-        _ => {
+        UPayloadFormat::UPAYLOAD_FORMAT_UNSPECIFIED
+        | UPayloadFormat::UPAYLOAD_FORMAT_JSON
+        | UPayloadFormat::UPAYLOAD_FORMAT_SOMEIP
+        | UPayloadFormat::UPAYLOAD_FORMAT_SOMEIP_TLV
+        | UPayloadFormat::UPAYLOAD_FORMAT_RAW
+        | UPayloadFormat::UPAYLOAD_FORMAT_TEXT
+        | UPayloadFormat::UPAYLOAD_FORMAT_SHM => {
             let detail_msg = payload_format.to_media_type().map_or_else(
                 || format!("Unknown payload format: {}", payload_format.value()),
                 |mt| format!("Invalid/unsupported payload format: {mt}"),

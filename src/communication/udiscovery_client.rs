@@ -163,7 +163,9 @@ mod tests {
         assert!(udiscovery_client
             .find_services(service_pattern_uri.clone(), false)
             .await
-            .is_ok_and(|result| result.len() == 1 && service_pattern_uri.matches(&result[0])));
+            .is_ok_and(
+                |result| result.len() == 1 && service_pattern_uri.matches(result.first().unwrap())
+            ));
     }
 
     #[tokio::test]
@@ -227,6 +229,7 @@ mod tests {
             .get_service_topics(topic_pattern_uri.clone(), false)
             .await
             .is_ok_and(|result| result.len() == 1
-                && topic_pattern_uri.matches(result[0].topic.as_ref().unwrap())));
+                && topic_pattern_uri
+                    .matches(result.first().and_then(|r| r.topic.as_ref()).unwrap())));
     }
 }
