@@ -901,7 +901,7 @@ mod tests {
 
     fn status_update_without_topic() -> UMessage {
         let update = crate::up_core_api::usubscription::Subscription {
-            status: crate::up_core_api::usubscription::SubscriptionStatus::SUBSCRIBED.into(),
+            status: crate::up_core_api::usubscription::SubscriptionStatus::STATUS_SUBSCRIBED.into(),
             ..Default::default()
         };
 
@@ -959,7 +959,7 @@ mod tests {
         let subscriber = UUri::try_from_parts("local", 0x2000, 0x01, 0x0000)
             .expect("should have been able to create subscriber URI");
         let topic = UUri::try_from_parts("other", 0x1a9a, 0x01, 0x8100).unwrap();
-        let status_proto = crate::up_core_api::usubscription::SubscriptionStatus::SUBSCRIBED;
+        let status_proto = crate::up_core_api::usubscription::SubscriptionStatus::STATUS_SUBSCRIBED;
 
         let update_proto = crate::up_core_api::usubscription::Subscription {
             topic: Some((&topic).into()).into(),
@@ -983,7 +983,9 @@ mod tests {
             .once()
             .withf(move |topic, updated_status| {
                 topic == &expected_topic
-                    && *updated_status == SubscriptionStatus::from(&status_proto)
+                    && *updated_status
+                        == SubscriptionStatus::try_from(&status_proto)
+                            .expect("should have received a valid subscription status")
             })
             .return_const(());
 

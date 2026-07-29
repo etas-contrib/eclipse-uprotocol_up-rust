@@ -117,8 +117,10 @@ impl TryFrom<&Subscription> for SubscriptionInfo {
         let status = subscription_proto
             .status
             .enum_value()
-            .map_err(|_| UStatus::fail_with_code(UCode::InvalidArgument, "status missing"))
-            .map(|s| SubscriptionStatus::from(&s))?;
+            .map_err(|_| {
+                UStatus::fail_with_code(UCode::InvalidArgument, "subscription status missing")
+            })
+            .map(|s| SubscriptionStatus::try_from(&s))??;
 
         Ok(SubscriptionInfo::new(
             topic,
@@ -184,7 +186,7 @@ impl USubscription for RpcClientUSubscription {
                             "uSubscription returned invalid response: no subscription status",
                         )
                     })
-                    .map(|s| SubscriptionStatus::from(&s))
+                    .map(|s| SubscriptionStatus::try_from(&s))?
             })
     }
 
@@ -361,8 +363,9 @@ mod tests {
             })
             .returning(move |_method, _options, _payload| {
                 let response = SubscribeResponse {
-                    status: crate::up_core_api::usubscription::SubscriptionStatus::SUBSCRIBED
-                        .into(),
+                    status:
+                        crate::up_core_api::usubscription::SubscriptionStatus::STATUS_SUBSCRIBED
+                            .into(),
                     ..Default::default()
                 };
                 Ok(Some(UPayload::try_from_protobuf(response).unwrap()))

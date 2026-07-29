@@ -114,19 +114,30 @@ pub enum SubscriptionStatus {
 
 #[cfg(all(feature = "up-core-types", feature = "usubscription"))]
 mod core_types_support {
+    use protobuf::EnumFull;
+
     use super::SubscriptionStatus;
-    use crate::up_core_api::usubscription::SubscriptionStatus::{
-        self as SubscriptionStatusProto, SUBSCRIBED, SUBSCRIBE_PENDING, UNSUBSCRIBED,
-        UNSUBSCRIBE_PENDING,
+    use crate::{
+        up_core_api::usubscription::SubscriptionStatus::{
+            self as SubscriptionStatusProto, STATUS_SUBSCRIBED, STATUS_SUBSCRIBE_PENDING,
+            STATUS_UNSUBSCRIBED, STATUS_UNSUBSCRIBE_PENDING,
+        },
+        UCode, UStatus,
     };
 
-    impl From<&SubscriptionStatusProto> for SubscriptionStatus {
-        fn from(value: &SubscriptionStatusProto) -> Self {
+    impl TryFrom<&SubscriptionStatusProto> for SubscriptionStatus {
+        type Error = UStatus;
+
+        fn try_from(value: &SubscriptionStatusProto) -> Result<Self, Self::Error> {
             match value {
-                UNSUBSCRIBED => SubscriptionStatus::Unsubscribed,
-                SUBSCRIBE_PENDING => SubscriptionStatus::SubscribePending,
-                SUBSCRIBED => SubscriptionStatus::Subscribed,
-                UNSUBSCRIBE_PENDING => SubscriptionStatus::UnsubscribePending,
+                STATUS_UNSUBSCRIBED => Ok(SubscriptionStatus::Unsubscribed),
+                STATUS_SUBSCRIBE_PENDING => Ok(SubscriptionStatus::SubscribePending),
+                STATUS_SUBSCRIBED => Ok(SubscriptionStatus::Subscribed),
+                STATUS_UNSUBSCRIBE_PENDING => Ok(SubscriptionStatus::UnsubscribePending),
+                _ => Err(UStatus::fail_with_code(
+                    UCode::OutOfRange,
+                    format!("invalid subscription status {}", value.descriptor()),
+                )),
             }
         }
     }
@@ -134,10 +145,10 @@ mod core_types_support {
     impl From<&SubscriptionStatus> for SubscriptionStatusProto {
         fn from(value: &SubscriptionStatus) -> Self {
             match value {
-                SubscriptionStatus::Unsubscribed => UNSUBSCRIBED,
-                SubscriptionStatus::SubscribePending => SUBSCRIBE_PENDING,
-                SubscriptionStatus::Subscribed => SUBSCRIBED,
-                SubscriptionStatus::UnsubscribePending => UNSUBSCRIBE_PENDING,
+                SubscriptionStatus::Unsubscribed => STATUS_UNSUBSCRIBED,
+                SubscriptionStatus::SubscribePending => STATUS_SUBSCRIBE_PENDING,
+                SubscriptionStatus::Subscribed => STATUS_SUBSCRIBED,
+                SubscriptionStatus::UnsubscribePending => STATUS_UNSUBSCRIBE_PENDING,
             }
         }
     }
