@@ -102,7 +102,7 @@ pub(crate) fn build_message<S: crate::umessage::BuilderState>(
 /// The current status of a client's subscription to a topic.
 ///
 /// The status goes through different stages during its lifecycle as defined in
-/// [uProtocol Specification, section 3.3.5](https://github.com/eclipse-uprotocol/up-spec/blob/v1.6.0-alpha.7/up-l3/usubscription/v3/README.adoc#usubscription-states).
+/// [uProtocol Specification, section 3.3.5](https://github.com/eclipse-uprotocol/up-spec/blob/main/up-l3/usubscription/v4/README.adoc#usubscription-states).
 #[derive(Clone, Debug, PartialEq)]
 #[repr(C)]
 pub enum SubscriptionStatus {
@@ -114,24 +114,30 @@ pub enum SubscriptionStatus {
 
 #[cfg(all(feature = "up-core-types", feature = "usubscription"))]
 mod core_types_support {
-    use super::{SubscriptionStatus, UCode, UStatus};
-    use crate::up_core_api::usubscription::subscription_status::State;
-    use crate::up_core_api::usubscription::SubscriptionStatus as SubscriptionStatusProto;
+    use super::SubscriptionStatus;
+    use crate::up_core_api::usubscription::SubscriptionStatus::{
+        self as SubscriptionStatusProto, SUBSCRIBED, SUBSCRIBE_PENDING, UNSUBSCRIBED,
+        UNSUBSCRIBE_PENDING,
+    };
 
-    impl TryFrom<&SubscriptionStatusProto> for SubscriptionStatus {
-        type Error = UStatus;
+    impl From<&SubscriptionStatusProto> for SubscriptionStatus {
+        fn from(value: &SubscriptionStatusProto) -> Self {
+            match value {
+                UNSUBSCRIBED => SubscriptionStatus::Unsubscribed,
+                SUBSCRIBE_PENDING => SubscriptionStatus::SubscribePending,
+                SUBSCRIBED => SubscriptionStatus::Subscribed,
+                UNSUBSCRIBE_PENDING => SubscriptionStatus::UnsubscribePending,
+            }
+        }
+    }
 
-        fn try_from(status_proto: &SubscriptionStatusProto) -> Result<Self, Self::Error> {
-            let state = status_proto.state.enum_value();
-            match state {
-                Ok(State::UNSUBSCRIBED) => Ok(SubscriptionStatus::Unsubscribed),
-                Ok(State::SUBSCRIBE_PENDING) => Ok(SubscriptionStatus::SubscribePending),
-                Ok(State::SUBSCRIBED) => Ok(SubscriptionStatus::Subscribed),
-                Ok(State::UNSUBSCRIBE_PENDING) => Ok(SubscriptionStatus::UnsubscribePending),
-                Err(v) => Err(UStatus::fail_with_code(
-                    UCode::InvalidArgument,
-                    format!("unknown subscription status {:?}", v),
-                )),
+    impl From<&SubscriptionStatus> for SubscriptionStatusProto {
+        fn from(value: &SubscriptionStatus) -> Self {
+            match value {
+                SubscriptionStatus::Unsubscribed => UNSUBSCRIBED,
+                SubscriptionStatus::SubscribePending => SUBSCRIBE_PENDING,
+                SubscriptionStatus::Subscribed => SUBSCRIBED,
+                SubscriptionStatus::UnsubscribePending => UNSUBSCRIBE_PENDING,
             }
         }
     }

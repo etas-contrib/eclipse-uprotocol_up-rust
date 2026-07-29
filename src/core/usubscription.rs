@@ -19,13 +19,21 @@ use crate::{communication::SubscriptionStatus, UStatus, UUri};
 
 #[cfg(all(feature = "up-l2-rpc-client", feature = "up-core-types"))]
 mod usubscription_client;
+#[cfg(feature = "up-core-types")]
+mod usubscription_server;
 #[cfg(all(feature = "up-l2-rpc-client", feature = "up-core-types"))]
 pub use usubscription_client::RpcClientUSubscription;
+#[cfg(feature = "up-core-types")]
+pub use usubscription_server::{
+    extract_usubscription_request, pack_usubscription_response, SubscribeRequest,
+    SubscribeResponse, USubscriptionRequest, USubscriptionResponse, UnsubscribeRequest,
+    UnsubscribeResponse,
+};
 
 /// The uEntity (type) identifier of the uSubscription service.
 pub const USUBSCRIPTION_TYPE_ID: u32 = 0x0000_0000;
 /// The (latest) major version of the uSubscription service.
-pub const USUBSCRIPTION_VERSION_MAJOR: u8 = 0x03;
+pub const USUBSCRIPTION_VERSION_MAJOR: u8 = 0x04;
 /// The resource identifier of uSubscription's _subscribe_ operation.
 pub const RESOURCE_ID_SUBSCRIBE: u16 = 0x0001;
 /// The resource identifier of uSubscription's _unsubscribe_ operation.
@@ -33,15 +41,13 @@ pub const RESOURCE_ID_UNSUBSCRIBE: u16 = 0x0002;
 /// The resource identifier of uSubscription's _fetch subscriptions_ operation.
 pub const RESOURCE_ID_FETCH_SUBSCRIPTIONS: u16 = 0x0003;
 /// The resource identifier of uSubscription's _register for notifications_ operation.
-pub const RESOURCE_ID_REGISTER_FOR_NOTIFICATIONS: u16 = 0x0006;
+pub const RESOURCE_ID_REGISTER_FOR_NOTIFICATIONS: u16 = 0x0004;
 /// The resource identifier of uSubscription's _unregister for notifications_ operation.
-pub const RESOURCE_ID_UNREGISTER_FOR_NOTIFICATIONS: u16 = 0x0007;
-/// The resource identifier of uSubscription's _fetch subscribers_ operation.
-pub const RESOURCE_ID_FETCH_SUBSCRIBERS: u16 = 0x0008;
+pub const RESOURCE_ID_UNREGISTER_FOR_NOTIFICATIONS: u16 = 0x0005;
 /// The resource identifier of uSubscription's _reset_ operation.
-pub const RESOURCE_ID_RESET: u16 = 0x0009;
+pub const RESOURCE_ID_RESET: u16 = 0x0006;
 
-/// The resource identifier of uSubscription's _subscription change_ topic.
+/// The resource identifier of uSubscription's _subscription change_ messages.
 pub const RESOURCE_ID_SUBSCRIPTION_CHANGE: u16 = 0x8000;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -63,7 +69,7 @@ impl SubscriptionInfo {
     /// * `status` - The status of the subscription.
     /// * `expiration` - The point in time at which the subscription expires (milliseconds since Unix epoch).
     ///   If not specified, the subscription is valid until explicitly unsubscribed.
-    /// * `min_sample_period` - The minimum duration (in seconds) between two events that should be maintained
+    /// * `min_sample_period` - The minimum duration (in milliseconds) between two events that should be maintained
     ///   for remote only topics. Device dispatchers (i.e. streamers) use this attribute to reduce the publication
     ///   rates of events sent between devices.
     ///   This attribute is commonly used for mobile/cloud components subscribing to vehicle topics that are published
@@ -136,15 +142,6 @@ impl SubscriptionInfo {
     }
 }
 
-/// Potential reasons for resetting the uSubscription service.
-#[derive(Debug, PartialEq)]
-#[repr(C)]
-pub enum ResetReason {
-    Unspecified,
-    FactoryReset,
-    CorruptedData,
-}
-
 /// Gets a UUri referring to one of the local uSubscription service's resources.
 ///
 /// # Examples
@@ -168,15 +165,8 @@ pub fn usubscription_uri(resource_id: u16) -> UUri {
 
 /// The uProtocol Application Layer client interface to the uSubscription service.
 ///
-/// Please refer to the [uSubscription service specification](https://github.com/eclipse-uprotocol/up-spec/blob/main/up-l3/usubscription/v3/README.adoc)
+/// Please refer to the [uSubscription service specification](https://github.com/eclipse-uprotocol/up-spec/blob/main/up-l3/usubscription/v4/README.adoc)
 /// for details.
-///
-/// **Note** that in contrast to the uSubscription service specification, the functions defined in this trait only
-/// support commonly used input and output parameters of the operations defined in the specification. This is mainly
-/// due to the fact, that for many of the other parameters defined in the specification, it is not entirely clear if
-/// and how they should be used in practice. The next version of the uSubscription service specification will
-/// include a more detailed description of the operations and their parameters, which will then be reflected in the
-/// next version of this trait.
 #[cfg_attr(test, automock)]
 #[async_trait]
 pub trait USubscription: Send + Sync {
@@ -187,7 +177,7 @@ pub trait USubscription: Send + Sync {
     /// * `topic` - The topic to subscribe to.
     /// * `expiration` - The point in time at which the subscription expires (milliseconds since Unix epoch).
     ///   If not specified, the subscription is valid until explicitly unsubscribed.
-    /// * `min_sample_period` - The minimum duration (in seconds) between two events that should be maintained
+    /// * `min_sample_period` - The minimum duration (in milliseconds) between two events that should be maintained
     ///   for remote only topics. Device dispatchers (i.e. streamers) use this attribute to reduce the
     ///   publication rates of events sent between devices.
     ///   This attribute is commonly used for mobile/cloud components subscribing to vehicle topics that are published
@@ -216,87 +206,40 @@ pub trait USubscription: Send + Sync {
     /// Returns an error if the attempt to unsubscribe has failed.
     async fn unsubscribe(&self, topic: &UUri) -> Result<(), UStatus>;
 
-    /// Gets all (currently) active subscriptions for a given topic.
+    /// Gets all (currently active) subscriptions for a given set of topics and/or subscribers.
     ///
     /// # Parameters
     ///
-    /// * `topic` - The topic to fetch subscriptions for.
+    /// * `topic_filter` - Only return subscriptions where the topic is matched by this filter.
+    /// * `subscriber_filter` - Only return subscriptions where the subscriber is matched by this filter.
     ///
     /// # Errors
     ///
     /// Returns an error if the attempt to retrieve the subscriptions has failed.
-    async fn fetch_subscriptions_by_topic(
+    async fn fetch_subscriptions(
         &self,
-        topic: &UUri,
+        topic_filter: Option<UUri>,
+        subscriber_filter: Option<UUri>,
     ) -> Result<Vec<SubscriptionInfo>, UStatus>;
 
-    /// Gets a uEntity's (currently) active subscriptions.
-    ///
-    /// # Parameters
-    ///
-    /// * `subscriber` - The uEntity to get the subscriptions for.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the attempt to retrieve the subscriptions has failed.
-    async fn fetch_subscriptions_by_subscriber(
-        &self,
-        subscriber: &UUri,
-    ) -> Result<Vec<SubscriptionInfo>, UStatus>;
-
-    /// Registers this client for notifications about changes to the subscription status for a given topic.
-    ///
-    /// # Parameters
-    ///
-    /// * `topic` - The topic to receive changes to subscription status for.
+    /// Registers this client for notifications about changes of subscriptions managed by uSubscription service.
     ///
     /// # Errors
     ///
     /// Returns an error if the attempt to register for notifications has failed.
-    async fn register_for_notifications(&self, topic: &UUri) -> Result<(), UStatus>;
+    async fn register_for_notifications(&self) -> Result<(), UStatus>;
 
-    /// Unregisters this client from notifications about changes to the subscription status for a given topic.
-    ///
-    /// # Parameters
-    ///
-    /// * `topic` - The topic to no longer receive changes to subscription status for.
+    /// Unregisters this client from notifications about changes of subscriptions managed by uSubscription service.
     ///
     /// # Errors
     ///
     /// Returns an error if the attempt to unregister from notifications has failed.
-    async fn unregister_for_notifications(&self, topic: &UUri) -> Result<(), UStatus>;
-
-    /// Fetches a list of subscribers that are currently subscribed to a given topic.
-    ///
-    /// # Parameters
-    ///
-    /// * `topic` - The topic to fetch subscriptions for.
-    ///
-    /// # Returns
-    ///
-    /// A list of URIs representing the uEntities that are subscribed to the given topic.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the attempt to fetch subscribers has failed.
-    async fn fetch_subscribers(&self, topic: &UUri) -> Result<Vec<UUri>, UStatus>;
+    async fn unregister_for_notifications(&self) -> Result<(), UStatus>;
 
     /// Flushes all stored subscription information, including any persistently stored subscriptions.
-    ///
-    /// # Parameters
-    ///
-    /// * `reason` - The reason for the reset.
-    /// * `message` - An optional human-readable message providing additional context about the reset.
-    /// * `before` - An optional timestamp (milliseconds since Unix epoch). All subscriptions created before
-    ///   this timestamp will be removed.
     ///
     /// # Errors
     ///
     /// Returns an error if the attempt to reset has failed.
-    async fn reset(
-        &self,
-        reason: ResetReason,
-        message: Option<String>,
-        before: Option<u64>,
-    ) -> Result<(), UStatus>;
+    async fn reset(&self) -> Result<(), UStatus>;
 }
